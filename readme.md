@@ -41,7 +41,7 @@ Response:
 
 ## Tugas
 
-Buatlah 2 handler atau controller untuk menghandle dua endpoint dibawah
+Lengkapi handler pada controller di user.js untuk menghandle dua endpoint dibawah
 
 1. GET `/users`
 
