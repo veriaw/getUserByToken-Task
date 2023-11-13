@@ -1,9 +1,29 @@
+require('dotenv').config();
 const Division = require('../model/Division');
 const User = require('../model/User');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const key = process.env.TOKEN_SECRET_KEY;
 
-const getAllUser = (req, res, next)=>{
+const getAllUser = async(req, res, next)=>{
   try {
     //TUGAS NOMOR 1
+    const users = await User.findAll({
+      //query = select id, fullname, nim, angkatan, profilePicture, divisionId from users
+      attributes: ['id', 'fullName', 'nim', 'angkatan', 'profilePicture', 'divisionId'],
+      //query = model user di inner joinkan dengan model division
+      include: {
+        model: Division,
+        //model division yang dioutputkan hanya kolom name
+        attributes: ['name']
+      }
+    });
+
+    res.status(200).json({
+      status: "Success",
+      message: "Successfully fetch all user data",
+      users: users
+    })
   } catch (error) {
     console.log(error.message);
   }
@@ -18,11 +38,15 @@ const getUserById = (req,res,next)=>{
   }
 }
 
+//handler register
 const postUser = async(req,res,next)=>{
   try {
     const {
       fullName, nim, angkatan, email, password, division
-    } = req.body
+    } = req.body;
+
+    //hashed password user    
+    const hashedPassword = await bcrypt.hash(password, 5);
 
     //cari divisi id
     //pakai await untuk menghindari penulisan then
@@ -34,10 +58,9 @@ const postUser = async(req,res,next)=>{
 
     //SELECT * FROM DIVISION WHERE name = division
     if(user_division == undefined){
-      res.status(400).json({
-        status: "Error",
-        message: `${division} is not existed`
-      })
+      const error = new Error(`division ${division} is not existed!`);
+      error.statusCode = 400;
+      throw error;
     }
 
     //insert data ke tabel User
@@ -46,10 +69,19 @@ const postUser = async(req,res,next)=>{
       fullName: fullName,
       //jika nama field == data maka bisa diringkas
       email,
-      password,
+      password : hashedPassword,
       angkatan,
       nim,
-      divisionId: user_division.id
+      divisionId: user_division.id,
+      role: "MEMBER"
+    });
+
+    const token = jwt.sign({
+      userId: currentUser.id,
+      role: currentUser.role
+    }, key, {
+      algorithm: "HS256",
+      expiresIn: "1h"
     })
 
     //send response
@@ -58,44 +90,140 @@ const postUser = async(req,res,next)=>{
       message: "Successfuly create User",
       user: {
         fullName: currentUser.fullName,
-        division: currentUser.division
-      }
+        division: currentUser.divisionId
+      },
+      token
     })
 
   } catch (error) {
-    console.log(error);
+    //jika status code belum terdefined maka status = 500;
+    res.status(error.statusCode || 500).json({
+      status: "Error",
+      message: error.message
+    })
+  }
+};
+
+const loginHandler = async (req,res,next)=>{
+  try {
+    // ambil data dari req body
+    console.log("test");
+    const { email, password} = req.body;
+    console.log(email, password)
+    const currentUser = await User.findOne({
+      where:{
+        //namaKolom: data_request_body
+        email: email
+      }
+    });
+    //apabila user tidak ditemukan
+    if (currentUser == undefined){
+      const error = new Error("wrong email or password");
+      error.statusCode = 400;
+      throw error;
+    }
+    const checkPassword = await bcrypt.compare(password, currentUser.password); 
+
+    //apabila password salah / tidak matched
+    if (checkPassword === false){
+      const error = new Error("wrong email or password");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const token = jwt.sign({
+      userId: currentUser.id,
+      role: currentUser.role
+    }, key,{
+      algorithm: "HS256",
+      expiresIn: "1h"
+    })
+
+    res.status(200).json({
+      status: "Success",
+      message: "Login Success!",
+      token
+    })
+
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      status: "errorr",
+      message: error.message
+    })
   }
 }
 
-const deleteUser = (req,res,next)=>{
+const deleteUser = async(req,res,next)=>{
+  //hanya admin yang bisa ngedelete
   try {
-    const {userId} = req.params;
+    //step 1 mengambil token
+    //mengambil header
+    const header = req.headers;
+    
+    //mengambil header authnya
+    const authorization = header.authorization;
+    console.log(authorization); //Bearer <token>
+    let token;
 
-    //mencari index user dari array model user
-    const targetedIndex = User.findIndex((element)=>{
-      return element.id == userId
-    })
-
-    //user tidak ketemu
-    if(targetedIndex === -1){
-      res.status(400).json({
-        status: "Error",
-        message: `User with id ${userId} is not existed`
-      })
+    //console.log(authorization); //Bearer token...
+    if(authorization !== undefined && authorization.startsWith("Bearer ")){
+      //mengilangkan string "Bearer "
+      token = authorization.substring(7); 
+      //token akan bernilai token
+    }else{
+      const error = new Error("You need to login");
+      error.statusCode = 403;
+      throw error;
+    }
+    //ekstrak payloadnya agar bisa mendapatkan userId dan role
+    const decoded = jwt.verify(token, key);
+    
+    //decoded mempunyai 2 property yaitu userId dan role
+    if(decoded.role !== "ADMIN"){
+      const error = new Error("You don't have access!!!");
+      error.statusCode = 403; //FORBIDDEN
+      throw error;
     }
 
-    //hapus array pada [targetedIndex] sebanyak 1 buah element
-    User.splice(targetedIndex, 1);
+    //menjalankan operasi hapus
+    const {userId} = req.params;
+    
+    const targetedUser = await User.destroy({
+      where:{
+        id: userId
+      }
+    })
+
+    if(targetedUser === undefined){
+      const error = new Error(`User with id ${userId} is not existed`);
+      error.statusCode = 400;
+      throw error;
+    }
 
     res.status(200).json({
       status: "Success",
       message: "Successfully delete user"
     })
   } catch (error) {
-    console.log(error.message);
+    res.status(error.statusCode || 500).json({
+      status: "Error",
+      message: error.message
+    })
   }
 }
 
+//TODO 1
+const getUserByToken = async(req,res,next)=>{
+  //tugas lengkapi codingan
+  //hanya user yang telah login bisa mengambil data dirinya dengan mengirimkan token
+  //step 1 ambil token
+
+  //step 2 ekstrak payload menggunakan jwt.verify
+
+  //step 3 cari user berdasarkan payload.userId
+
+}
+
 module.exports = {
-  getAllUser, getUserById, postUser, deleteUser
+  getAllUser, getUserById, postUser, deleteUser, loginHandler, getUserByToken, updateUserByToken
 }
