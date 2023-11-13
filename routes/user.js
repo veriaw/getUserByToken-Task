@@ -1,8 +1,6 @@
 const express = require('express');
 const router = express.Router();
 
-//import model users dari folder model
-const User = require('../model/User');
 const { 
   getAllUser, getUserById, postUser, loginHandler, deleteUser, getUserByToken,
 

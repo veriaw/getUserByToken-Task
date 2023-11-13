@@ -2,14 +2,20 @@
 
 1. **Clone** repository ini 
 2. Buka **xampp** kemudian jalankan **mysql** dan **apache**
-3. Pastikan terdapat database dengan nama **data_itc** yang memiliki dua tabel yaitu **users** dan   **divisions**
-4. Pada database **divisions** pastikan terdapat data divisi'' itc yaitu WEB DEV, MOBILE DEV, PM, INKADIV, dan UI/UX
-5. Install dependency dengan cara mengetik `npm i` di terminal atau cmd, tunggu sampai selesai.
-6. Jalankan service dengan cara mengetik `npx nodemon app`
+3. Install dependency dengan cara mengetik `npm i` di terminal atau cmd, tunggu sampai selesai.
+4. Jalankan service dengan cara mengetik `npx nodemon app`
+5. Jalankan < force: true > pada file /util/assoc_db.js didalam options < await my_db.sync > kemudian tunggu tabel terbuat
+6. Pastikan terdapat database dengan nama **data_itc** yang memiliki dua tabel yaitu **users** dan   **divisions**
+7. Apabila database dan tabel''nya telah terbuat, jalankan < force: false > pada file /util/assoc_db.js didalam options < await my_db.sync > 
+8. Uncomment < Division.bulkCreate > & < await User.create > dalam fungsi association pada file /util/assoc_db.js.
+9. Pada database **divisions** pastikan terdapat data divisi'' itc yaitu WEB DEV, MOBILE DEV, dll. Pastikan juga database **user** telah terisi data seva
+10. comment < Division.bulkCreate > & < await User.create > dalam fungsi association pada file /util/assoc_db.js. Agar data tidak tergenerate secara terus menerus di tabel ketika merestart server.
 
 ## Dokumentasi
 
-POST `/users`
+POST `/users/register`
+
+Deskripsi: Endpoint ini untuk register member baru ITC. 
 
 Request Body :
 
@@ -29,21 +35,37 @@ Response:
 ```
 {
     "status": "success",
-    "message": "Successfuly create User",
-    "user": {
-        "fullName": "Dimas Pramantya",
-        "division": "WEB DEV"
-    }
+    "message": "Register Successfull",
+    "token": "<jwt token>"
+}
+```
+---
+
+POST `/users/login`
+
+Deskripsi: Endpoint ini untuk register member baru ITC. 
+
+Request Body :
+
+```
+{
+    "email": "dimas@gmail.com",
+    "password": "12345678",
 }
 ```
 
+Response:
+
+```
+{
+    "status": "success",
+    "message": "Login Successfull",
+    "token": "<jwt token>"
+}
+```
 ---
 
-## Tugas
-
-Lengkapi handler pada controller di user.js untuk menghandle dua endpoint dibawah
-
-1. GET `/users`
+GET `/users`
 
 Deskripsi: Endpoint ini untuk mengambil semua data user di database. 
 
@@ -75,12 +97,21 @@ Response:
 }
 ```
 
----
+## TUGAS
 
-2. GET `/users/:userId`
+1. GET `/users/fetch-by-token`
 
 Deskripsi: 
-Endpoint ini untuk mengambil semua data user di database berdasarkan req.params yaitu userId
+Endpoint ini untuk mengambil semua data user di database berdasarkan bearer token di auth
+
+Request:
+```
+{
+  headers: {
+    authorization: "Bearer <jwt token>"
+  }
+}
+```
 
 Response:
 ```
@@ -91,7 +122,9 @@ Response:
       "id": 0,
       "fullName": "Dimas Pramantya",
       "angkatan": 2021,
-      "divisionId": 1
+      "division": {
+        name: "Web Dev"
+      }
   }
 }
 ```

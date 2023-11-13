@@ -87,11 +87,7 @@ const postUser = async(req,res,next)=>{
     //send response
     res.status(201).json({
       status: "success",
-      message: "Successfuly create User",
-      user: {
-        fullName: currentUser.fullName,
-        division: currentUser.divisionId
-      },
+      message: "Register Successfull!",
       token
     })
 
@@ -141,7 +137,7 @@ const loginHandler = async (req,res,next)=>{
 
     res.status(200).json({
       status: "Success",
-      message: "Login Success!",
+      message: "Login Successfull!",
       token
     })
 
