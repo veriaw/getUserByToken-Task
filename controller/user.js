@@ -214,12 +214,12 @@ const getUserByToken = async(req,res,next)=>{
   //hanya user yang telah login bisa mengambil data dirinya dengan mengirimkan token
   //step 1 ambil token
 
+
   //step 2 ekstrak payload menggunakan jwt.verify
 
   //step 3 cari user berdasarkan payload.userId
-
 }
 
 module.exports = {
-  getAllUser, getUserById, postUser, deleteUser, loginHandler, getUserByToken, updateUserByToken
+  getAllUser, getUserById, postUser, deleteUser, loginHandler, getUserByToken
 }
