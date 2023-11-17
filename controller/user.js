@@ -210,14 +210,50 @@ const deleteUser = async(req,res,next)=>{
 
 //TODO 1
 const getUserByToken = async(req,res,next)=>{
-  //tugas lengkapi codingan
-  //hanya user yang telah login bisa mengambil data dirinya dengan mengirimkan token
-  //step 1 ambil token
+  try{
+    //tugas lengkapi codingan
+    //hanya user yang telah login bisa mengambil data dirinya dengan mengirimkan token
+    //step 1 ambil token
+    const header = req.headers;
+    const authorization = header.authorization;
+    let token;
 
+    //console.log(authorization); //Bearer token...
+    if(authorization !== undefined && authorization.startsWith("Bearer ")){
+        //mengilangkan string "Bearer "
+      token = authorization.substring(7); 
+        //token akan bernilai token
+    }else{
+      const error = new Error("You need to login");
+      error.statusCode = 403;
+      throw error;
+      }
+    //step 2 ekstrak payload menggunakan jwt.verify
+    const decoded= jwt.verify(token, key);
+    //step 3 cari user berdasarkan payload.userId
+    const getUserByPayload = await User.findOne({
+      where:{
+        id:decoded.userId
+      },
+      attributes: ['id', 'fullName', 'nim', 'angkatan'],
+      include: {
+        model: Division,
+        //model division yang dioutputkan hanya kolom name
+        attributes: ['name']
+      }
+    });
 
-  //step 2 ekstrak payload menggunakan jwt.verify
-
-  //step 3 cari user berdasarkan payload.userId
+    res.status(200).json({
+      status: "Success",
+      message: "Successfully fetch user data by token",
+      users: getUserByPayload
+    })
+  }catch(error){
+    res.status(error.statusCode || 500).json({
+      status: "Error",
+      message: error.message
+    })
+  };
 }
 
 module.exports = {
